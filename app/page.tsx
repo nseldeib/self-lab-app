@@ -2,29 +2,27 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { User, LogOut, Plus, Activity, Calendar, TrendingUp, BookOpen, Target, Clock, CheckCircle } from "lucide-react"
 import {
   getCurrentUser,
-  signOut,
+  logoutUser,
   getExperiments,
   getDailyLogs,
   getExperimentTemplates,
-  type User,
+  type User as UserType,
   type Experiment,
-  type DailyLog,
 } from "@/lib/storage"
-import { Activity, Beaker, Calendar, TrendingUp, UserIcon, LogOut, Plus } from "lucide-react"
-import Link from "next/link"
 
-export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [experiments, setExperiments] = useState<Experiment[]>([])
-  const [recentLogs, setRecentLogs] = useState<DailyLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [signingOut, setSigningOut] = useState(false)
+export default function Dashboard() {
   const router = useRouter()
+  const [user, setUser] = useState<UserType | null>(null)
+  const [experiments, setExperiments] = useState<Experiment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -39,30 +37,27 @@ export default function DashboardPage() {
     const userExperiments = getExperiments(currentUser.id)
     setExperiments(userExperiments)
 
-    // Load recent daily logs
-    const userLogs = getDailyLogs(currentUser.id)
-    setRecentLogs(userLogs.slice(0, 5)) // Get last 5 logs
-
-    setLoading(false)
+    setIsLoading(false)
   }, [router])
 
   const handleSignOut = async () => {
-    setSigningOut(true)
+    setIsSigningOut(true)
     try {
-      await signOut()
+      logoutUser()
       router.push("/auth/signin")
     } catch (error) {
       console.error("Sign out error:", error)
-      setSigningOut(false)
+    } finally {
+      setIsSigningOut(false)
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
+          <p className="mt-2 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
@@ -74,32 +69,35 @@ export default function DashboardPage() {
 
   const activeExperiments = experiments.filter((exp) => exp.status === "active")
   const completedExperiments = experiments.filter((exp) => exp.status === "completed")
+  const totalLogs = getDailyLogs(user.id).length
   const templates = getExperimentTemplates()
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">🧬 SelfLab</h1>
-              <p className="text-gray-600">Welcome back, {user.name || user.email}!</p>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back{user.name ? `, ${user.name}` : ""}!</h1>
+              <p className="text-gray-600">Track your biohacking experiments and optimize your health</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <UserIcon className="h-4 w-4" />
+
+            {/* User Info and Sign Out */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <User className="h-4 w-4" />
                 <span>{user.email}</span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSignOut}
-                disabled={signingOut}
+                disabled={isSigningOut}
                 className="text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                {signingOut ? "Signing Out..." : "Sign Out"}
+                {isSigningOut ? "Signing Out..." : "Sign Out"}
               </Button>
             </div>
           </div>
@@ -113,7 +111,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Experiments</CardTitle>
-              <Beaker className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{activeExperiments.length}</div>
@@ -124,7 +122,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{completedExperiments.length}</div>
@@ -138,170 +136,159 @@ export default function DashboardPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{recentLogs.length}</div>
-              <p className="text-xs text-muted-foreground">Total entries</p>
+              <div className="text-2xl font-bold">{totalLogs}</div>
+              <p className="text-xs text-muted-foreground">Data points recorded</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Templates</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{templates.length}</div>
-              <p className="text-xs text-muted-foreground">Available to try</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Active Experiments */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Active Experiments</CardTitle>
-                  <CardDescription>Your currently running experiments</CardDescription>
-                </div>
-                <Link href="/experiments/new">
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {activeExperiments.length === 0 ? (
-                <div className="text-center py-8">
-                  <Beaker className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No active experiments</h3>
-                  <p className="text-gray-600 mb-4">
-                    Start your first biohacking experiment to begin tracking your progress.
-                  </p>
-                  <Link href="/experiments/new">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Experiment
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {activeExperiments.map((experiment) => (
-                    <div key={experiment.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{experiment.title}</h4>
-                        <Badge variant="secondary">{experiment.status}</Badge>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{experiment.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Calendar className="h-3 w-3" />
-                        <span>{experiment.duration} days</span>
-                        <span>•</span>
-                        <span>Started {new Date(experiment.startDate).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                  <Link href="/experiments">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      View All Experiments
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your latest daily logs</CardDescription>
-                </div>
-                <Link href="/log">
-                  <Button size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log Today
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recentLogs.length === 0 ? (
-                <div className="text-center py-8">
-                  <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No activity yet</h3>
-                  <p className="text-gray-600 mb-4">Start logging your daily metrics to track your progress.</p>
-                  <Link href="/log">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Log Today
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentLogs.map((log) => (
-                    <div key={log.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{new Date(log.date).toLocaleDateString()}</h4>
-                        <div className="flex gap-2">
-                          <Badge variant="outline">Mood: {log.mood}/10</Badge>
-                          <Badge variant="outline">Energy: {log.energy}/10</Badge>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        <p>Sleep: {log.sleep} hours</p>
-                        {log.notes && <p className="mt-1 italic">"{log.notes}"</p>}
-                      </div>
-                    </div>
-                  ))}
-                  <Link href="/log">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      View All Logs
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">Ready to start</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks to get you started</CardDescription>
+              <CardTitle className="flex items-center">
+                <Plus className="h-5 w-5 mr-2" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>Get started with your biohacking journey</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button className="w-full justify-start" onClick={() => router.push("/experiments/new")}>
+                <Target className="h-4 w-4 mr-2" />
+                Start New Experiment
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-transparent"
+                onClick={() => router.push("/log")}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Log Today's Data
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-transparent"
+                onClick={() => router.push("/library")}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Browse Templates
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Active Experiments
+              </CardTitle>
+              <CardDescription>Your current biohacking experiments</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Link href="/experiments/new">
-                  <Button variant="outline" className="w-full h-20 flex flex-col gap-2 bg-transparent">
-                    <Beaker className="h-6 w-6" />
-                    <span>Start Experiment</span>
-                  </Button>
-                </Link>
-                <Link href="/log">
-                  <Button variant="outline" className="w-full h-20 flex flex-col gap-2 bg-transparent">
-                    <Calendar className="h-6 w-6" />
-                    <span>Log Today</span>
-                  </Button>
-                </Link>
-                <Link href="/library">
-                  <Button variant="outline" className="w-full h-20 flex flex-col gap-2 bg-transparent">
-                    <Activity className="h-6 w-6" />
-                    <span>Browse Templates</span>
-                  </Button>
-                </Link>
-              </div>
+              {activeExperiments.length === 0 ? (
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">No active experiments yet</p>
+                  <Button onClick={() => router.push("/experiments/new")}>Start Your First Experiment</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeExperiments.slice(0, 3).map((experiment) => {
+                    const startDate = new Date(experiment.startDate)
+                    const endDate = new Date(experiment.endDate)
+                    const today = new Date()
+                    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                    const daysPassed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+                    const progress = Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100)
+
+                    return (
+                      <div key={experiment.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-medium">{experiment.title}</h3>
+                          <Badge variant="secondary">
+                            Day {Math.max(daysPassed, 1)} of {totalDays}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{experiment.description}</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                          <Progress value={progress} className="h-2" />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {activeExperiments.length > 3 && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={() => router.push("/experiments")}
+                    >
+                      View All Experiments
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Clock className="h-5 w-5 mr-2" />
+              Recent Activity
+            </CardTitle>
+            <CardDescription>Your latest experiment logs and updates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {totalLogs === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">No activity yet</p>
+                <p className="text-sm text-gray-400">Start logging your daily metrics to see your progress</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {getDailyLogs(user.id)
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 5)
+                  .map((log) => {
+                    const experiment = experiments.find((exp) => exp.id === log.experimentId)
+                    return (
+                      <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                        <div>
+                          <p className="font-medium">{experiment?.title || "Unknown Experiment"}</p>
+                          <p className="text-sm text-gray-600">Logged on {new Date(log.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Badge variant="outline">Mood: {log.mood}/10</Badge>
+                          <Badge variant="outline">Energy: {log.energy}/10</Badge>
+                        </div>
+                      </div>
+                    )
+                  })}
+                <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push("/insights")}>
+                  View All Activity
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
