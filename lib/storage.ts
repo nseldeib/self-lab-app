@@ -107,6 +107,11 @@ const EXPERIMENTS_KEY = "selflab_experiments"
 const DAILY_LOGS_KEY = "selflab_daily_logs"
 const TEMPLATES_KEY = "selflab_templates"
 
+// Utility function to generate unique IDs
+export function generateId(): string {
+  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
+}
+
 // Initialize templates if not exists
 function initializeTemplates() {
   if (typeof window === "undefined") return
@@ -166,7 +171,7 @@ export async function signUp(
 
     // Create new user
     const newUser: User = {
-      id: Date.now().toString(),
+      id: generateId(),
       email,
       name,
       createdAt: new Date().toISOString(),
@@ -212,6 +217,26 @@ export async function signIn(
 
 export async function signOut(): Promise<void> {
   setCurrentUser(null)
+}
+
+export async function resetPassword(email: string): Promise<{ error: string | null }> {
+  // Simulate API delay
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+
+  if (!email) {
+    return { error: "Email is required" }
+  }
+
+  // Check if user exists
+  const users = getUsers()
+  const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+
+  if (!existingUser) {
+    return { error: "No account found with this email address" }
+  }
+
+  // In a real app, this would send an email
+  return { error: null }
 }
 
 export async function createDemoAccount(): Promise<{ success: boolean; user?: User }> {
