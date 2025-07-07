@@ -8,140 +8,111 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Loader2, Mail } from "lucide-react"
+import { Mail, ArrowLeft, Info } from "lucide-react"
 import { resetPassword } from "@/lib/storage"
 
-export default function ForgotPasswordPage() {
+export default function ForgotPassword() {
   const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
-  const [isSubmitted, setIsSubmitted] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoading(true)
     setError("")
     setMessage("")
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
       const result = resetPassword(email)
 
       if (result.success) {
-        setMessage(
-          "Since this is a demo app using local storage, password reset emails aren't actually sent. In a real app, you would receive an email with reset instructions.",
-        )
-        setIsSubmitted(true)
+        setMessage("Password reset instructions have been sent to your email.")
       } else {
         setError(result.message)
       }
-    } catch (error) {
-      setError("An unexpected error occurred. Please try again.")
+    } catch (err) {
+      setError("An error occurred. Please try again.")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
-
-  const isFormValid = email && email.includes("@")
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">🧬 SelfLab</h1>
-          <h2 className="mt-6 text-2xl font-bold text-gray-900">Reset your password</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Enter your email address and we'll send you a link to reset your password
-          </p>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Reset Password</h2>
+          <p className="mt-2 text-sm text-gray-600">Enter your email to receive reset instructions</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Mail className="mr-2 h-5 w-5" />
-              Password Reset
-            </CardTitle>
-            <CardDescription>
-              {isSubmitted
-                ? "Check your email for reset instructions"
-                : "We'll send you instructions to reset your password"}
-            </CardDescription>
+            <CardTitle>Forgot Password</CardTitle>
+            <CardDescription>We'll send you instructions to reset your password</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+          <CardContent>
+            {/* Demo Mode Notice */}
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+              <div className="flex">
+                <Info className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="text-blue-800 font-medium mb-1">Demo Mode</p>
+                  <p className="text-blue-700">
+                    This is a demo application using local storage. In a real application, this would send an actual
+                    password reset email.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            {message && (
-              <Alert>
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">{error}</div>
+              )}
 
-            {!isSubmitted ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
+              {message && (
+                <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md text-sm">
+                  {message}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    autoComplete="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
                     placeholder="Enter your email address"
-                    disabled={isLoading}
+                    disabled={loading}
                   />
                 </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading || !isFormValid}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending instructions...
-                    </>
-                  ) : (
-                    "Send reset instructions"
-                  )}
-                </Button>
-              </form>
-            ) : (
-              <div className="text-center space-y-4">
-                <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <Mail className="h-6 w-6 text-green-600" />
-                </div>
-                <p className="text-sm text-gray-600">
-                  If an account with that email exists, you'll receive password reset instructions shortly.
-                </p>
-                <Button variant="outline" className="w-full bg-transparent" onClick={() => setIsSubmitted(false)}>
-                  Send to a different email
-                </Button>
               </div>
-            )}
 
-            <div className="text-center">
-              <Link
-                href="/auth/signin"
-                className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500"
-              >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to sign in
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending Instructions..." : "Send Reset Instructions"}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <Link href="/auth/signin" className="inline-flex items-center text-sm text-blue-600 hover:text-blue-500">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to Sign In
               </Link>
             </div>
           </CardContent>
         </Card>
 
         <div className="text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-xs text-gray-500">
             Remember your password?{" "}
-            <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/auth/signin" className="text-blue-600 hover:text-blue-500">
               Sign in here
             </Link>
           </p>

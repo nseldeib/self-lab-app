@@ -9,11 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Loader2, Check, X } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, Check, X } from "lucide-react"
 import { registerUser } from "@/lib/storage"
 
-export default function SignUpPage() {
+export default function SignUp() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     name: "",
@@ -23,234 +22,200 @@ export default function SignUpPage() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-    // Clear error when user starts typing
-    if (error) setError("")
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoading(true)
     setError("")
 
-    // Validate passwords match
+    // Validation
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      setLoading(false)
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
-      setIsLoading(false)
+      setLoading(false)
       return
     }
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const result = registerUser(formData.email, formData.password, formData.name)
+      const result = registerUser(formData.email, formData.password, formData.name || undefined)
 
       if (result.success) {
-        // Auto-login after successful registration
-        router.push("/")
+        router.push("/auth/signin?message=Account created successfully")
       } else {
         setError(result.message)
       }
-    } catch (error) {
-      setError("An unexpected error occurred. Please try again.")
+    } catch (err) {
+      setError("An error occurred during registration")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  // Password validation
-  const passwordRequirements = {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }))
+  }
+
+  // Password validation checks
+  const passwordChecks = {
     length: formData.password.length >= 6,
     match: formData.password === formData.confirmPassword && formData.confirmPassword.length > 0,
   }
-
-  const isFormValid =
-    formData.email &&
-    formData.password &&
-    formData.confirmPassword &&
-    passwordRequirements.length &&
-    passwordRequirements.match
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">🧬 SelfLab</h1>
-          <h2 className="mt-6 text-2xl font-bold text-gray-900">Create your account</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Or{" "}
-            <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
-              sign in to your existing account
-            </Link>
-          </p>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Join SelfLab</h2>
+          <p className="mt-2 text-sm text-gray-600">Create your biohacking account</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Get started</CardTitle>
-            <CardDescription>Create your account to start tracking your biohacking experiments</CardDescription>
+            <CardTitle>Sign Up</CardTitle>
+            <CardDescription>Create a new account to start tracking your experiments</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">{error}</div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="name">Full name (optional)</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                  disabled={isLoading}
-                />
+                <Label htmlFor="name">Name (Optional)</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="pl-10"
+                    placeholder="Enter your name"
+                    disabled={loading}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter your email"
-                  disabled={isLoading}
-                />
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="pl-10"
+                    placeholder="Enter your email"
+                    disabled={loading}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
                     required
                     value={formData.password}
-                    onChange={handleInputChange}
+                    onChange={handleChange}
+                    className="pl-10 pr-10"
                     placeholder="Create a password"
-                    disabled={isLoading}
-                    className="pr-10"
+                    disabled={loading}
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    disabled={loading}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
 
                 {/* Password requirements */}
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2 text-xs">
-                    {passwordRequirements.length ? (
-                      <Check className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <X className="h-3 w-3 text-gray-400" />
-                    )}
-                    <span className={passwordRequirements.length ? "text-green-600" : "text-gray-500"}>
+                {formData.password && (
+                  <div className="text-xs space-y-1">
+                    <div className={`flex items-center ${passwordChecks.length ? "text-green-600" : "text-gray-500"}`}>
+                      {passwordChecks.length ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
                       At least 6 characters
-                    </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    autoComplete="new-password"
                     required
                     value={formData.confirmPassword}
-                    onChange={handleInputChange}
+                    onChange={handleChange}
+                    className="pl-10 pr-10"
                     placeholder="Confirm your password"
-                    disabled={isLoading}
-                    className="pr-10"
+                    disabled={loading}
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    disabled={isLoading}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    disabled={loading}
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
 
+                {/* Password match check */}
                 {formData.confirmPassword && (
-                  <div className="flex items-center space-x-2 text-xs">
-                    {passwordRequirements.match ? (
-                      <Check className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <X className="h-3 w-3 text-red-500" />
-                    )}
-                    <span className={passwordRequirements.match ? "text-green-600" : "text-red-600"}>
+                  <div className="text-xs">
+                    <div className={`flex items-center ${passwordChecks.match ? "text-green-600" : "text-red-500"}`}>
+                      {passwordChecks.match ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
                       Passwords match
-                    </span>
+                    </div>
                   </div>
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading || !isFormValid}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account...
-                  </>
-                ) : (
-                  "Create account"
-                )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || !passwordChecks.length || !passwordChecks.match}
+              >
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
+            <div className="mt-6 text-center">
+              <div className="text-sm text-gray-600">
                 Already have an account?{" "}
-                <Link href="/auth/signin" className="font-medium text-blue-600 hover:text-blue-500">
-                  Sign in here
+                <Link href="/auth/signin" className="text-blue-600 hover:text-blue-500 font-medium">
+                  Sign in
                 </Link>
-              </p>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            By creating an account, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </div>
       </div>
     </div>
   )

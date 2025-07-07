@@ -10,11 +10,11 @@ export interface User {
 export interface Experiment {
   id: string
   userId: string
-  title: string
+  name: string
   description: string
   duration: number
   startDate: string
-  endDate: string
+  endDate?: string
   status: "active" | "completed" | "paused"
   metrics: string[]
   notes?: string
@@ -37,7 +37,7 @@ export interface DailyLog {
 
 export interface ExperimentTemplate {
   id: string
-  title: string
+  name: string
   description: string
   duration: number
   metrics: string[]
@@ -45,89 +45,102 @@ export interface ExperimentTemplate {
   category: string
 }
 
-// Utility functions
-export function generateId(): string {
-  return Math.random().toString(36).substr(2, 9)
+// Storage keys
+const STORAGE_KEYS = {
+  USERS: "selflab_users",
+  CURRENT_USER: "selflab_current_user",
+  EXPERIMENTS: "selflab_experiments",
+  DAILY_LOGS: "selflab_daily_logs",
+  TEMPLATES: "selflab_templates",
 }
 
-// Storage keys
-const USERS_KEY = "selflab_users"
-const EXPERIMENTS_KEY = "selflab_experiments"
-const LOGS_KEY = "selflab_logs"
-const CURRENT_USER_KEY = "selflab_current_user"
-const TEMPLATES_KEY = "selflab_templates"
+// Utility functions
+export function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2)
+}
 
-// Default experiment templates
-const DEFAULT_TEMPLATES: ExperimentTemplate[] = [
-  {
-    id: "template_1",
-    title: "Cold Shower Challenge",
-    description: "Take cold showers for 2-3 minutes daily to boost alertness and resilience",
-    duration: 21,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "Start with 30 seconds of cold water at the end of your regular shower, gradually increase to 2-3 minutes over the first week.",
-    category: "Physical",
-  },
-  {
-    id: "template_2",
-    title: "Intermittent Fasting 16:8",
-    description: "Fast for 16 hours, eat within an 8-hour window daily",
-    duration: 28,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "Skip breakfast and eat between 12pm-8pm. Stay hydrated with water, black coffee, or plain tea during fasting hours.",
-    category: "Nutrition",
-  },
-  {
-    id: "template_3",
-    title: "Morning Light Exposure",
-    description: "Get 10-15 minutes of natural sunlight within 1 hour of waking",
-    duration: 14,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "Go outside or sit by a bright window within 1 hour of waking. No sunglasses needed, but avoid staring directly at the sun.",
-    category: "Circadian",
-  },
-  {
-    id: "template_4",
-    title: "Meditation Practice",
-    description: "Daily mindfulness meditation to reduce stress and improve focus",
-    duration: 21,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "Start with 5 minutes daily, focusing on breath awareness. Use apps like Headspace or Calm, or practice in silence.",
-    category: "Mental",
-  },
-  {
-    id: "template_5",
-    title: "High-Intensity Interval Training",
-    description: "Short bursts of intense exercise followed by rest periods",
-    duration: 28,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "20-30 minutes, 3x per week. Example: 30 seconds high intensity, 90 seconds rest, repeat 8-12 rounds.",
-    category: "Physical",
-  },
-  {
-    id: "template_6",
-    title: "Blue Light Blocking",
-    description: "Wear blue light blocking glasses 2 hours before bedtime",
-    duration: 14,
-    metrics: ["mood", "energy", "sleep", "compliance"],
-    instructions:
-      "Put on blue light blocking glasses 2 hours before your target bedtime. Dim other lights and avoid screens when possible.",
-    category: "Circadian",
-  },
-]
+function getStorageData<T>(key: string): T[] {
+  if (typeof window === "undefined") return []
+  try {
+    const data = localStorage.getItem(key)
+    return data ? JSON.parse(data) : []
+  } catch {
+    return []
+  }
+}
 
-// Initialize templates if not exists
-function initializeTemplates(): void {
+function setStorageData<T>(key: string, data: T[]): void {
   if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(key, JSON.stringify(data))
+  } catch (error) {
+    console.error("Failed to save to localStorage:", error)
+  }
+}
 
-  const existingTemplates = localStorage.getItem(TEMPLATES_KEY)
-  if (!existingTemplates) {
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(DEFAULT_TEMPLATES))
+// Initialize default templates
+function initializeTemplates(): void {
+  const existingTemplates = getStorageData<ExperimentTemplate>(STORAGE_KEYS.TEMPLATES)
+  if (existingTemplates.length === 0) {
+    const defaultTemplates: ExperimentTemplate[] = [
+      {
+        id: "template-1",
+        name: "Cold Shower Challenge",
+        description: "Take cold showers daily to improve resilience and energy",
+        duration: 21,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions:
+          "Take a cold shower for 2-3 minutes every morning. Start with lukewarm water and gradually decrease temperature.",
+        category: "Physical",
+      },
+      {
+        id: "template-2",
+        name: "Intermittent Fasting 16:8",
+        description: "Fast for 16 hours, eat within 8-hour window",
+        duration: 28,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions:
+          "Fast for 16 hours daily, typically from 8 PM to 12 PM next day. Drink water, tea, or black coffee during fasting.",
+        category: "Nutrition",
+      },
+      {
+        id: "template-3",
+        name: "Morning Light Exposure",
+        description: "Get natural sunlight within first hour of waking",
+        duration: 14,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions: "Spend 10-15 minutes outside or by a bright window within 1 hour of waking up.",
+        category: "Circadian",
+      },
+      {
+        id: "template-4",
+        name: "Meditation Practice",
+        description: "Daily mindfulness meditation for mental clarity",
+        duration: 21,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions: "Meditate for 10-20 minutes daily using breathing techniques or guided meditation.",
+        category: "Mental",
+      },
+      {
+        id: "template-5",
+        name: "High-Intensity Interval Training",
+        description: "Short bursts of intense exercise for fitness",
+        duration: 28,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions: "Perform 15-20 minutes of HIIT exercises 3-4 times per week with rest days.",
+        category: "Physical",
+      },
+      {
+        id: "template-6",
+        name: "Blue Light Blocking",
+        description: "Reduce blue light exposure 2 hours before bed",
+        duration: 14,
+        metrics: ["mood", "energy", "sleep", "compliance"],
+        instructions: "Use blue light blocking glasses or apps 2 hours before bedtime. Avoid screens when possible.",
+        category: "Circadian",
+      },
+    ]
+    setStorageData(STORAGE_KEYS.TEMPLATES, defaultTemplates)
   }
 }
 
@@ -137,107 +150,103 @@ export function registerUser(
   password: string,
   name?: string,
 ): { success: boolean; message: string; user?: User } {
-  if (typeof window === "undefined") return { success: false, message: "Not in browser environment" }
+  const users = getStorageData<User>(STORAGE_KEYS.USERS)
 
-  try {
-    const users = getUsers()
-
-    // Check if user already exists
-    if (users.find((u) => u.email === email)) {
-      return { success: false, message: "User already exists with this email" }
-    }
-
-    const newUser: User = {
-      id: generateId(),
-      email,
-      password, // In a real app, this would be hashed
-      name,
-      createdAt: new Date().toISOString(),
-    }
-
-    users.push(newUser)
-    localStorage.setItem(USERS_KEY, JSON.stringify(users))
-
-    return { success: true, message: "User registered successfully", user: newUser }
-  } catch (error) {
-    return { success: false, message: "Failed to register user" }
+  if (users.find((u) => u.email === email)) {
+    return { success: false, message: "User already exists" }
   }
+
+  const user: User = {
+    id: generateId(),
+    email,
+    password,
+    name,
+    createdAt: new Date().toISOString(),
+  }
+
+  users.push(user)
+  setStorageData(STORAGE_KEYS.USERS, users)
+
+  return { success: true, message: "User registered successfully", user }
 }
 
 export function loginUser(email: string, password: string): { success: boolean; message: string; user?: User } {
-  if (typeof window === "undefined") return { success: false, message: "Not in browser environment" }
+  const users = getStorageData<User>(STORAGE_KEYS.USERS)
+  const user = users.find((u) => u.email === email && u.password === password)
 
-  try {
-    const users = getUsers()
-    const user = users.find((u) => u.email === email && u.password === password)
-
-    if (!user) {
-      return { success: false, message: "Invalid email or password" }
-    }
-
-    // Set current user
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
-
-    return { success: true, message: "Login successful", user }
-  } catch (error) {
-    return { success: false, message: "Failed to login" }
+  if (!user) {
+    return { success: false, message: "Invalid email or password" }
   }
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user))
+  }
+
+  return { success: true, message: "Login successful", user }
 }
 
 export function getCurrentUser(): User | null {
   if (typeof window === "undefined") return null
-
   try {
-    const userStr = localStorage.getItem(CURRENT_USER_KEY)
-    return userStr ? JSON.parse(userStr) : null
-  } catch (error) {
+    const userData = localStorage.getItem(STORAGE_KEYS.CURRENT_USER)
+    return userData ? JSON.parse(userData) : null
+  } catch {
     return null
   }
 }
 
 export function logoutUser(): void {
-  if (typeof window === "undefined") return
-  localStorage.removeItem(CURRENT_USER_KEY)
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER)
+  }
 }
 
-// Add signOut as an alias for logoutUser
 export function signOut(): void {
   logoutUser()
 }
 
 export function resetPassword(email: string): { success: boolean; message: string } {
-  if (typeof window === "undefined") return { success: false, message: "Not in browser environment" }
+  const users = getStorageData<User>(STORAGE_KEYS.USERS)
+  const user = users.find((u) => u.email === email)
 
-  try {
-    const users = getUsers()
-    const user = users.find((u) => u.email === email)
-
-    if (!user) {
-      return { success: false, message: "No user found with this email" }
-    }
-
-    // In a real app, this would send an email
-    return { success: true, message: "Password reset instructions sent to your email" }
-  } catch (error) {
-    return { success: false, message: "Failed to process password reset" }
+  if (!user) {
+    return { success: false, message: "User not found" }
   }
+
+  return { success: true, message: "Password reset instructions sent to your email" }
 }
 
-// Helper functions
-function getUsers(): User[] {
-  if (typeof window === "undefined") return []
+// Demo account setup
+export function setupDemoAccount(): { success: boolean; message: string; user?: User } {
+  const demoEmail = "demo@selflab.com"
+  const demoPassword = "password123"
 
-  try {
-    const usersStr = localStorage.getItem(USERS_KEY)
-    return usersStr ? JSON.parse(usersStr) : []
-  } catch (error) {
-    return []
+  const users = getStorageData<User>(STORAGE_KEYS.USERS)
+  let demoUser = users.find((u) => u.email === demoEmail)
+
+  if (!demoUser) {
+    const result = registerUser(demoEmail, demoPassword, "Demo User")
+    if (!result.success) {
+      return result
+    }
+    demoUser = result.user!
   }
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(demoUser))
+  }
+
+  return { success: true, message: "Demo account ready", user: demoUser }
 }
 
 // Experiment management
-export function createExperiment(experiment: Omit<Experiment, "id" | "createdAt" | "updatedAt">): Experiment {
-  if (typeof window === "undefined") throw new Error("Not in browser environment")
+export function getUserExperiments(userId: string): Experiment[] {
+  const experiments = getStorageData<Experiment>(STORAGE_KEYS.EXPERIMENTS)
+  return experiments.filter((exp) => exp.userId === userId)
+}
+
+export function saveExperiment(experiment: Omit<Experiment, "id" | "createdAt" | "updatedAt">): Experiment {
+  const experiments = getStorageData<Experiment>(STORAGE_KEYS.EXPERIMENTS)
 
   const newExperiment: Experiment = {
     ...experiment,
@@ -246,237 +255,130 @@ export function createExperiment(experiment: Omit<Experiment, "id" | "createdAt"
     updatedAt: new Date().toISOString(),
   }
 
-  const experiments = getExperiments()
   experiments.push(newExperiment)
-  localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(experiments))
+  setStorageData(STORAGE_KEYS.EXPERIMENTS, experiments)
 
   return newExperiment
 }
 
-export function getExperiments(userId?: string): Experiment[] {
-  if (typeof window === "undefined") return []
-
-  try {
-    const experimentsStr = localStorage.getItem(EXPERIMENTS_KEY)
-    const experiments = experimentsStr ? JSON.parse(experimentsStr) : []
-
-    if (userId) {
-      return experiments.filter((exp: Experiment) => exp.userId === userId)
-    }
-
-    return experiments
-  } catch (error) {
-    return []
-  }
-}
-
-export function saveExperiment(experiment: Experiment): void {
-  if (typeof window === "undefined") return
-
-  try {
-    const experiments = getExperiments()
-    const index = experiments.findIndex((exp) => exp.id === experiment.id)
-
-    if (index === -1) {
-      // New experiment
-      experiments.push({
-        ...experiment,
-        updatedAt: new Date().toISOString(),
-      })
-    } else {
-      // Update existing experiment
-      experiments[index] = {
-        ...experiment,
-        updatedAt: new Date().toISOString(),
-      }
-    }
-
-    localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(experiments))
-  } catch (error) {
-    console.error("Failed to save experiment:", error)
-  }
-}
-
 export function updateExperiment(id: string, updates: Partial<Experiment>): Experiment | null {
-  if (typeof window === "undefined") return null
+  const experiments = getStorageData<Experiment>(STORAGE_KEYS.EXPERIMENTS)
+  const index = experiments.findIndex((exp) => exp.id === id)
 
-  try {
-    const experiments = getExperiments()
-    const index = experiments.findIndex((exp) => exp.id === id)
+  if (index === -1) return null
 
-    if (index === -1) return null
-
-    experiments[index] = {
-      ...experiments[index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    }
-
-    localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(experiments))
-    return experiments[index]
-  } catch (error) {
-    return null
+  experiments[index] = {
+    ...experiments[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
   }
+
+  setStorageData(STORAGE_KEYS.EXPERIMENTS, experiments)
+  return experiments[index]
 }
 
 export function deleteExperiment(id: string): boolean {
-  if (typeof window === "undefined") return false
+  const experiments = getStorageData<Experiment>(STORAGE_KEYS.EXPERIMENTS)
+  const filteredExperiments = experiments.filter((exp) => exp.id !== id)
 
-  try {
-    const experiments = getExperiments()
-    const filteredExperiments = experiments.filter((exp) => exp.id !== id)
+  if (filteredExperiments.length === experiments.length) return false
 
-    localStorage.setItem(EXPERIMENTS_KEY, JSON.stringify(filteredExperiments))
+  setStorageData(STORAGE_KEYS.EXPERIMENTS, filteredExperiments)
 
-    // Also delete related logs
-    const logs = getDailyLogs()
-    const filteredLogs = logs.filter((log) => log.experimentId !== id)
-    localStorage.setItem(LOGS_KEY, JSON.stringify(filteredLogs))
+  // Also delete related daily logs
+  const logs = getStorageData<DailyLog>(STORAGE_KEYS.DAILY_LOGS)
+  const filteredLogs = logs.filter((log) => log.experimentId !== id)
+  setStorageData(STORAGE_KEYS.DAILY_LOGS, filteredLogs)
 
-    return true
-  } catch (error) {
-    return false
-  }
+  return true
 }
 
 // Daily log management
-export function createDailyLog(log: Omit<DailyLog, "id" | "createdAt">): DailyLog {
-  if (typeof window === "undefined") throw new Error("Not in browser environment")
+export function getUserDailyLogs(userId: string): DailyLog[] {
+  const logs = getStorageData<DailyLog>(STORAGE_KEYS.DAILY_LOGS)
+  return logs.filter((log) => log.userId === userId)
+}
+
+export function saveDailyLog(log: Omit<DailyLog, "id" | "createdAt">): DailyLog {
+  const logs = getStorageData<DailyLog>(STORAGE_KEYS.DAILY_LOGS)
+
+  // Check if log already exists for this date and experiment
+  const existingLogIndex = logs.findIndex(
+    (l) => l.userId === log.userId && l.experimentId === log.experimentId && l.date === log.date,
+  )
 
   const newLog: DailyLog = {
     ...log,
-    id: generateId(),
-    createdAt: new Date().toISOString(),
+    id: existingLogIndex >= 0 ? logs[existingLogIndex].id : generateId(),
+    createdAt: existingLogIndex >= 0 ? logs[existingLogIndex].createdAt : new Date().toISOString(),
   }
 
-  const logs = getDailyLogs()
-  logs.push(newLog)
-  localStorage.setItem(LOGS_KEY, JSON.stringify(logs))
+  if (existingLogIndex >= 0) {
+    logs[existingLogIndex] = newLog
+  } else {
+    logs.push(newLog)
+  }
 
+  setStorageData(STORAGE_KEYS.DAILY_LOGS, logs)
   return newLog
 }
 
-export function getDailyLogs(userId?: string, experimentId?: string): DailyLog[] {
-  if (typeof window === "undefined") return []
-
-  try {
-    const logsStr = localStorage.getItem(LOGS_KEY)
-    let logs = logsStr ? JSON.parse(logsStr) : []
-
-    if (userId) {
-      logs = logs.filter((log: DailyLog) => log.userId === userId)
-    }
-
-    if (experimentId) {
-      logs = logs.filter((log: DailyLog) => log.experimentId === experimentId)
-    }
-
-    return logs
-  } catch (error) {
-    return []
-  }
-}
-
-export function saveDailyLog(log: DailyLog): void {
-  if (typeof window === "undefined") return
-
-  try {
-    const logs = getDailyLogs()
-    const index = logs.findIndex((l) => l.id === log.id)
-
-    if (index === -1) {
-      // New log
-      logs.push(log)
-    } else {
-      // Update existing log
-      logs[index] = log
-    }
-
-    localStorage.setItem(LOGS_KEY, JSON.stringify(logs))
-  } catch (error) {
-    console.error("Failed to save daily log:", error)
-  }
-}
-
-export function updateDailyLog(id: string, updates: Partial<DailyLog>): DailyLog | null {
-  if (typeof window === "undefined") return null
-
-  try {
-    const logs = getDailyLogs()
-    const index = logs.findIndex((log) => log.id === id)
-
-    if (index === -1) return null
-
-    logs[index] = { ...logs[index], ...updates }
-    localStorage.setItem(LOGS_KEY, JSON.stringify(logs))
-
-    return logs[index]
-  } catch (error) {
-    return null
-  }
+export function getDailyLog(userId: string, experimentId: string, date: string): DailyLog | null {
+  const logs = getStorageData<DailyLog>(STORAGE_KEYS.DAILY_LOGS)
+  return logs.find((log) => log.userId === userId && log.experimentId === experimentId && log.date === date) || null
 }
 
 // Template management
 export function getExperimentTemplates(): ExperimentTemplate[] {
-  if (typeof window === "undefined") return DEFAULT_TEMPLATES
-
   initializeTemplates()
-
-  try {
-    const templatesStr = localStorage.getItem(TEMPLATES_KEY)
-    return templatesStr ? JSON.parse(templatesStr) : DEFAULT_TEMPLATES
-  } catch (error) {
-    return DEFAULT_TEMPLATES
-  }
+  return getStorageData<ExperimentTemplate>(STORAGE_KEYS.TEMPLATES)
 }
 
-export function createExperimentFromTemplate(templateId: string, userId: string, startDate: string): Experiment | null {
+export function getTemplate(id: string): ExperimentTemplate | null {
   const templates = getExperimentTemplates()
-  const template = templates.find((t) => t.id === templateId)
-
-  if (!template) return null
-
-  const endDate = new Date(startDate)
-  endDate.setDate(endDate.getDate() + template.duration)
-
-  return createExperiment({
-    userId,
-    title: template.title,
-    description: template.description,
-    duration: template.duration,
-    startDate,
-    endDate: endDate.toISOString().split("T")[0],
-    status: "active",
-    metrics: template.metrics,
-    notes: template.instructions,
-  })
+  return templates.find((template) => template.id === id) || null
 }
 
-// Demo account setup
-export function setupDemoAccount(): User {
-  const demoEmail = "demo@selflab.com"
-  const demoPassword = "password123"
+// Statistics
+export function getUserStats(userId: string): {
+  totalExperiments: number
+  activeExperiments: number
+  completedExperiments: number
+  totalLogs: number
+  currentStreak: number
+} {
+  const experiments = getUserExperiments(userId)
+  const logs = getUserDailyLogs(userId)
 
-  // Check if demo user already exists
-  const users = getUsers()
-  let demoUser = users.find((u) => u.email === demoEmail)
+  const activeExperiments = experiments.filter((exp) => exp.status === "active").length
+  const completedExperiments = experiments.filter((exp) => exp.status === "completed").length
 
-  if (!demoUser) {
-    const result = registerUser(demoEmail, demoPassword, "Demo User")
-    if (result.success && result.user) {
-      demoUser = result.user
+  // Calculate current streak (consecutive days with logs)
+  const sortedLogs = logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  let currentStreak = 0
+  const today = new Date()
+
+  for (let i = 0; i < sortedLogs.length; i++) {
+    const logDate = new Date(sortedLogs[i].date)
+    const daysDiff = Math.floor((today.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysDiff === currentStreak) {
+      currentStreak++
     } else {
-      throw new Error("Failed to create demo user")
+      break
     }
   }
 
-  // Set as current user
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(demoUser))
-
-  return demoUser
+  return {
+    totalExperiments: experiments.length,
+    activeExperiments,
+    completedExperiments,
+    totalLogs: logs.length,
+    currentStreak,
+  }
 }
 
-// Initialize storage
-export function initializeStorage(): void {
+// Initialize storage on first load
+if (typeof window !== "undefined") {
   initializeTemplates()
 }
