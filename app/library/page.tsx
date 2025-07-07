@@ -1,291 +1,293 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Navigation } from "@/components/navigation"
-import {
-  getCurrentUser,
-  getExperimentTemplates,
-  saveExperiment,
-  generateId,
-  type User,
-  type ExperimentTemplate,
-  type Experiment,
-} from "@/lib/storage"
-import { Search, BookOpen, Clock, Plus } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Search, Clock, Target, Zap, Brain, Heart, Dumbbell } from "lucide-react"
 
 export default function LibraryPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [templates, setTemplates] = useState<ExperimentTemplate[]>([])
-  const [filteredTemplates, setFilteredTemplates] = useState<ExperimentTemplate[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all")
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const currentUser = getCurrentUser()
-    if (!currentUser) {
-      window.location.href = "/auth/signin"
-      return
-    }
+  const experimentTemplates = [
+    {
+      id: 1,
+      name: "Cold Shower Protocol",
+      description: "Start your day with cold water exposure to boost energy and mood",
+      category: "Recovery",
+      duration: "30 days",
+      difficulty: "Medium",
+      goals: ["Energy", "Mood", "Resilience"],
+      icon: "🚿",
+      metrics: ["Energy Level", "Mood", "Sleep Quality", "Stress Level"],
+      protocol: "End your morning shower with 30-60 seconds of cold water",
+    },
+    {
+      id: 2,
+      name: "No Caffeine After 2PM",
+      description: "Improve sleep quality by avoiding late-day caffeine consumption",
+      category: "Sleep",
+      duration: "21 days",
+      difficulty: "Easy",
+      goals: ["Sleep", "Recovery"],
+      icon: "☕",
+      metrics: ["Sleep Quality", "Sleep Duration", "Morning Energy"],
+      protocol: "Avoid all caffeine (coffee, tea, chocolate) after 2:00 PM",
+    },
+    {
+      id: 3,
+      name: "Morning Meditation",
+      description: "Start each day with 10 minutes of mindfulness meditation",
+      category: "Mental",
+      duration: "28 days",
+      difficulty: "Easy",
+      goals: ["Stress", "Focus", "Mood"],
+      icon: "🧘",
+      metrics: ["Stress Level", "Focus", "Mood", "Sleep Quality"],
+      protocol: "Meditate for 10 minutes within 1 hour of waking up",
+    },
+    {
+      id: 4,
+      name: "Intermittent Fasting 16:8",
+      description: "Fast for 16 hours, eat within an 8-hour window",
+      category: "Nutrition",
+      duration: "30 days",
+      difficulty: "Hard",
+      goals: ["Weight", "Energy", "Focus"],
+      icon: "⏰",
+      metrics: ["Weight", "Energy Level", "Hunger Level", "Focus"],
+      protocol: "Eat only between 12:00 PM and 8:00 PM daily",
+    },
+    {
+      id: 5,
+      name: "Daily 10K Steps",
+      description: "Walk at least 10,000 steps every day",
+      category: "Movement",
+      duration: "30 days",
+      difficulty: "Medium",
+      goals: ["Fitness", "Energy", "Mood"],
+      icon: "👟",
+      metrics: ["Steps", "Energy Level", "Mood", "Sleep Quality"],
+      protocol: "Achieve 10,000+ steps daily through walking or other activities",
+    },
+    {
+      id: 6,
+      name: "Blue Light Blocking",
+      description: "Wear blue light blocking glasses 2 hours before bed",
+      category: "Sleep",
+      duration: "21 days",
+      difficulty: "Easy",
+      goals: ["Sleep", "Recovery"],
+      icon: "🕶️",
+      metrics: ["Sleep Quality", "Sleep Duration", "Morning Energy"],
+      protocol: "Wear blue light blocking glasses from 8 PM until bedtime",
+    },
+    {
+      id: 7,
+      name: "Wim Hof Breathing",
+      description: "Practice controlled breathing exercises for stress and energy",
+      category: "Recovery",
+      duration: "21 days",
+      difficulty: "Medium",
+      goals: ["Stress", "Energy", "Focus"],
+      icon: "💨",
+      metrics: ["Stress Level", "Energy Level", "Focus", "Mood"],
+      protocol: "3 rounds of 30 breaths followed by breath holds, daily",
+    },
+    {
+      id: 8,
+      name: "Gratitude Journaling",
+      description: "Write down 3 things you're grateful for each day",
+      category: "Mental",
+      duration: "30 days",
+      difficulty: "Easy",
+      goals: ["Mood", "Stress"],
+      icon: "📝",
+      metrics: ["Mood", "Stress Level", "Sleep Quality"],
+      protocol: "Write 3 specific things you're grateful for before bed",
+    },
+  ]
 
-    setUser(currentUser)
-    const allTemplates = getExperimentTemplates()
-    setTemplates(allTemplates)
-    setFilteredTemplates(allTemplates)
-    setLoading(false)
-  }, [])
+  const categories = ["All", "Sleep", "Nutrition", "Movement", "Mental", "Recovery"]
+  const [selectedCategory, setSelectedCategory] = useState("All")
 
-  useEffect(() => {
-    let filtered = templates
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (template) =>
-          template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          template.category.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
-
-    // Filter by category
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((template) => template.category.toLowerCase() === selectedCategory.toLowerCase())
-    }
-
-    // Filter by difficulty
-    if (selectedDifficulty !== "all") {
-      filtered = filtered.filter((template) => template.difficulty === selectedDifficulty)
-    }
-
-    setFilteredTemplates(filtered)
-  }, [templates, searchQuery, selectedCategory, selectedDifficulty])
-
-  const handleStartExperiment = (template: ExperimentTemplate) => {
-    if (!user) return
-
-    const today = new Date()
-    const endDate = new Date(today)
-    endDate.setDate(today.getDate() + template.duration_days)
-
-    const experiment: Experiment = {
-      id: generateId(),
-      user_id: user.id,
-      name: template.name,
-      hypothesis: template.hypothesis,
-      start_date: today.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-      status: "active",
-      variables: template.variables,
-      metrics: template.metrics,
-      notes: `Protocol: ${template.protocol}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    saveExperiment(experiment)
-    alert(`Started experiment: ${template.name}`)
-  }
+  const filteredTemplates = experimentTemplates.filter((template) => {
+    const matchesSearch =
+      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === "All" || template.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case "beginner":
+      case "Easy":
         return "bg-green-100 text-green-800"
-      case "intermediate":
+      case "Medium":
         return "bg-yellow-100 text-yellow-800"
-      case "advanced":
+      case "Hard":
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
   }
 
-  const categories = ["all", ...Array.from(new Set(templates.map((t) => t.category.toLowerCase())))]
-  const difficulties = ["all", "beginner", "intermediate", "advanced"]
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-64 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "Sleep":
+        return <Clock className="h-4 w-4" />
+      case "Nutrition":
+        return <Target className="h-4 w-4" />
+      case "Movement":
+        return <Dumbbell className="h-4 w-4" />
+      case "Mental":
+        return <Brain className="h-4 w-4" />
+      case "Recovery":
+        return <Heart className="h-4 w-4" />
+      default:
+        return <Zap className="h-4 w-4" />
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Experiment Library</h1>
+        <p className="text-gray-600 mt-2">Discover proven biohacking protocols and health experiments</p>
+      </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Experiment Library</h1>
-          <p className="text-gray-600 mt-2">Discover proven biohacking experiments to try</p>
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search experiments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+          <TabsList>
+            {categories.map((category) => (
+              <TabsTrigger key={category} value={category} className="flex items-center gap-2">
+                {category !== "All" && getCategoryIcon(category)}
+                {category}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
 
-        {/* Filters */}
-        <div className="mb-8 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search experiments..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      {/* Results Count */}
+      <div className="text-sm text-gray-600">
+        Showing {filteredTemplates.length} experiment{filteredTemplates.length !== 1 ? "s" : ""}
+      </div>
 
-          <div className="flex flex-wrap gap-4">
-            <div className="flex gap-2">
-              <span className="text-sm font-medium text-gray-700 self-center">Category:</span>
-              {categories.map((category) => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className={selectedCategory !== category ? "bg-transparent" : ""}
-                >
-                  {category === "all" ? "All" : category.charAt(0).toUpperCase() + category.slice(1)}
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              <span className="text-sm font-medium text-gray-700 self-center">Difficulty:</span>
-              {difficulties.map((difficulty) => (
-                <Button
-                  key={difficulty}
-                  variant={selectedDifficulty === difficulty ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedDifficulty(difficulty)}
-                  className={selectedDifficulty !== difficulty ? "bg-transparent" : ""}
-                >
-                  {difficulty === "all" ? "All" : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="mb-4">
-          <p className="text-gray-600">
-            Showing {filteredTemplates.length} of {templates.length} experiments
-          </p>
-        </div>
-
-        {/* Templates Grid */}
-        {filteredTemplates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map((template) => (
-              <Card key={template.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{template.name}</CardTitle>
-                      <CardDescription className="mt-2">{template.description}</CardDescription>
-                    </div>
-                    <Badge className={getDifficultyColor(template.difficulty)}>{template.difficulty}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Category & Duration */}
-                    <div className="flex justify-between items-center text-sm">
-                      <Badge variant="outline">{template.category}</Badge>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Clock className="h-4 w-4" />
-                        {template.duration_days} days
-                      </div>
-                    </div>
-
-                    {/* Hypothesis */}
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Hypothesis:</h4>
-                      <p className="text-sm text-gray-600">{template.hypothesis}</p>
-                    </div>
-
-                    {/* Variables & Metrics */}
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-700">Variables:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {template.variables.slice(0, 3).map((variable, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {variable}
-                            </Badge>
-                          ))}
-                          {template.variables.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{template.variables.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-700">Metrics:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {template.metrics.slice(0, 3).map((metric, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {metric}
-                            </Badge>
-                          ))}
-                          {template.metrics.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{template.metrics.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Protocol Preview */}
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-700 mb-1">Protocol:</h4>
-                      <p className="text-xs text-gray-600 line-clamp-2">{template.protocol}</p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <Button onClick={() => handleStartExperiment(template)} className="flex-1">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Start Experiment
-                      </Button>
+      {/* Experiment Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredTemplates.map((template) => (
+          <Card key={template.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{template.icon}</span>
+                  <div>
+                    <CardTitle className="text-lg">{template.name}</CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      {getCategoryIcon(template.category)}
+                      <span className="text-sm text-gray-600">{template.category}</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <Badge className={getDifficultyColor(template.difficulty)}>{template.difficulty}</Badge>
+              </div>
+              <CardDescription className="mt-2">{template.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Duration:</span>
+                <span className="font-medium">{template.duration}</span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Goals:</span>
+                <div className="flex flex-wrap gap-1">
+                  {template.goals.map((goal) => (
+                    <Badge key={goal} variant="outline" className="text-xs">
+                      {goal}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Metrics Tracked:</span>
+                <div className="flex flex-wrap gap-1">
+                  {template.metrics.slice(0, 3).map((metric) => (
+                    <Badge key={metric} variant="secondary" className="text-xs">
+                      {metric}
+                    </Badge>
+                  ))}
+                  {template.metrics.length > 3 && (
+                    <Badge variant="secondary" className="text-xs">
+                      +{template.metrics.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium">Protocol:</span>
+                <p className="text-xs text-gray-600 line-clamp-2">{template.protocol}</p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                  Preview
+                </Button>
+                <Button size="sm" className="flex-1">
+                  Try This
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      {filteredTemplates.length === 0 && (
+        <div className="text-center py-12">
+          <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No experiments found</h3>
+          <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+        </div>
+      )}
+
+      {/* Popular Categories */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Popular Categories</CardTitle>
+          <CardDescription>Explore experiments by category</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {categories.slice(1).map((category) => (
+              <Button
+                key={category}
+                variant="outline"
+                className="h-20 flex flex-col gap-2 bg-transparent"
+                onClick={() => setSelectedCategory(category)}
+              >
+                {getCategoryIcon(category)}
+                <span className="text-sm">{category}</span>
+              </Button>
             ))}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No experiments found</h3>
-            <p className="text-gray-600 mb-6">Try adjusting your search or filter criteria.</p>
-            <Button onClick={() => (setSearchQuery(""), setSelectedCategory("all"), setSelectedDifficulty("all"))}>
-              Clear Filters
-            </Button>
-          </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
