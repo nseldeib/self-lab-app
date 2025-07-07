@@ -1,278 +1,301 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type React from "react"
+
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Slider } from "@/components/ui/slider"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Save, ChevronLeft, ChevronRight } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Navigation } from "@/components/navigation"
+import {
+  getCurrentUser,
+  getDailyLogs,
+  saveDailyLog,
+  getExperiments,
+  generateId,
+  type User,
+  type DailyLog,
+  type Experiment,
+} from "@/lib/storage"
+import { Calendar, Moon, Zap, Smile, Save } from "lucide-react"
 
 export default function LogPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [logData, setLogData] = useState({
-    sleep: [7],
-    mood: [7],
-    energy: [7],
-    stress: [3],
-    weight: "",
-    notes: "",
-    protocolCompliance: false,
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [experiments, setExperiments] = useState<Experiment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
-  const activeExperiments = [
-    { name: "Cold Shower Protocol", compliance: false },
-    { name: "No Caffeine After 2PM", compliance: true },
-    { name: "Morning Meditation", compliance: false },
-  ]
+  // Form state
+  const [date, setDate] = useState("")
+  const [sleepHours, setSleepHours] = useState("")
+  const [mood, setMood] = useState(3)
+  const [energy, setEnergy] = useState(3)
+  const [notes, setNotes] = useState("")
+  const [experimentCompliance, setExperimentCompliance] = useState<Record<string, boolean>>({})
 
-  const moodEmojis = ["😢", "😞", "😐", "😊", "😄", "🤩"]
-  const energyColors = ["bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-green-500", "bg-blue-500"]
+  useEffect(() => {
+    const currentUser = getCurrentUser()
+    if (!currentUser) {
+      window.location.href = "/auth/signin"
+      return
+    }
 
-  const handleProtocolToggle = (experimentName: string) => {
-    // Handle protocol compliance toggle
-    console.log(`Toggled ${experimentName}`)
+    setUser(currentUser)
+    const userExperiments = getExperiments().filter((e) => e.user_id === currentUser.id && e.status === "active")
+    setExperiments(userExperiments)
+
+    // Set today's date
+    const today = new Date().toISOString().split("T")[0]
+    setDate(today)
+
+    // Load existing log for today if it exists
+    const dailyLogs = getDailyLogs()
+    const todayLog = dailyLogs.find((log) => log.user_id === currentUser.id && log.date === today)
+
+    if (todayLog) {
+      setSleepHours(todayLog.sleep_hours.toString())
+      setMood(todayLog.mood)
+      setEnergy(todayLog.energy)
+      setNotes(todayLog.notes || "")
+      setExperimentCompliance(todayLog.experiment_compliance)
+    } else {
+      // Initialize compliance for active experiments
+      const initialCompliance: Record<string, boolean> = {}
+      userExperiments.forEach((exp) => {
+        initialCompliance[exp.id] = false
+      })
+      setExperimentCompliance(initialCompliance)
+    }
+
+    setLoading(false)
+  }, [])
+
+  const handleComplianceChange = (experimentId: string, compliant: boolean) => {
+    setExperimentCompliance((prev) => ({
+      ...prev,
+      [experimentId]: compliant,
+    }))
   }
 
-  const handleSave = () => {
-    console.log("Saving log data:", logData)
-    // Handle save logic
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!user) return
+
+    setSaving(true)
+
+    const log: DailyLog = {
+      id: generateId(),
+      user_id: user.id,
+      date,
+      sleep_hours: Number.parseFloat(sleepHours) || 0,
+      mood,
+      energy,
+      notes: notes || undefined,
+      experiment_compliance: experimentCompliance,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    saveDailyLog(log)
+
+    setSaving(false)
+
+    // Show success message (you could add a toast here)
+    alert("Daily log saved successfully!")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Daily Log</h1>
-          <p className="text-gray-600 mt-2">Track your daily metrics and experiment progress</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "justify-start text-left font-normal min-w-[200px]",
-                  !selectedDate && "text-muted-foreground",
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          <Button variant="outline" size="sm">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Main Metrics */}
-        <div className="space-y-6">
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Daily Log</h1>
+          <p className="text-gray-600 mt-2">Track your daily metrics and experiment compliance</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Date */}
           <Card>
             <CardHeader>
-              <CardTitle>Core Metrics</CardTitle>
-              <CardDescription>Your daily health indicators</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Date
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Sleep */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label>Sleep Duration</Label>
-                  <span className="text-sm font-medium">{logData.sleep[0]}h</span>
-                </div>
-                <Slider
-                  value={logData.sleep}
-                  onValueChange={(value) => setLogData((prev) => ({ ...prev, sleep: value }))}
-                  max={12}
-                  min={0}
-                  step={0.5}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>0h</span>
-                  <span>12h</span>
-                </div>
-              </div>
+            <CardContent>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </CardContent>
+          </Card>
 
-              {/* Mood */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label>Mood</Label>
-                  <span className="text-lg">{moodEmojis[Math.min(logData.mood[0] - 1, 5)]}</span>
-                </div>
-                <Slider
-                  value={logData.mood}
-                  onValueChange={(value) => setLogData((prev) => ({ ...prev, mood: value }))}
-                  max={10}
-                  min={1}
-                  step={1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Poor</span>
-                  <span>Excellent</span>
-                </div>
-              </div>
-
-              {/* Energy */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label>Energy Level</Label>
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "w-3 h-3 rounded-full",
-                          i < Math.ceil(logData.energy[0] / 2) ? energyColors[i] : "bg-gray-200",
-                        )}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <Slider
-                  value={logData.energy}
-                  onValueChange={(value) => setLogData((prev) => ({ ...prev, energy: value }))}
-                  max={10}
-                  min={1}
-                  step={1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Exhausted</span>
-                  <span>Energized</span>
-                </div>
-              </div>
-
-              {/* Stress */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label>Stress Level</Label>
-                  <span className="text-sm font-medium">{logData.stress[0]}/10</span>
-                </div>
-                <Slider
-                  value={logData.stress}
-                  onValueChange={(value) => setLogData((prev) => ({ ...prev, stress: value }))}
-                  max={10}
-                  min={0}
-                  step={1}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Calm</span>
-                  <span>Very Stressed</span>
-                </div>
-              </div>
-
-              {/* Weight */}
-              <div className="space-y-2">
-                <Label htmlFor="weight">Weight (optional)</Label>
+          {/* Sleep */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Moon className="h-5 w-5" />
+                Sleep
+              </CardTitle>
+              <CardDescription>How many hours did you sleep?</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
                 <Input
-                  id="weight"
                   type="number"
-                  placeholder="e.g., 70.5"
-                  value={logData.weight}
-                  onChange={(e) => setLogData((prev) => ({ ...prev, weight: e.target.value }))}
+                  step="0.5"
+                  min="0"
+                  max="24"
+                  value={sleepHours}
+                  onChange={(e) => setSleepHours(e.target.value)}
+                  placeholder="8.0"
+                  className="w-24"
+                  required
                 />
+                <span className="text-gray-600">hours</span>
               </div>
             </CardContent>
           </Card>
+
+          {/* Mood */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Smile className="h-5 w-5" />
+                Mood
+              </CardTitle>
+              <CardDescription>Rate your overall mood today (1-5)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setMood(rating)}
+                    className={`w-12 h-12 rounded-full border-2 transition-colors ${
+                      mood >= rating
+                        ? "bg-blue-500 border-blue-500 text-white"
+                        : "border-gray-300 hover:border-blue-300"
+                    }`}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>Very Low</span>
+                <span>Very High</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Energy */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Energy
+              </CardTitle>
+              <CardDescription>Rate your energy level today (1-5)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setEnergy(rating)}
+                    className={`w-12 h-12 rounded-full border-2 transition-colors ${
+                      energy >= rating
+                        ? "bg-green-500 border-green-500 text-white"
+                        : "border-gray-300 hover:border-green-300"
+                    }`}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>Very Low</span>
+                <span>Very High</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Experiment Compliance */}
+          {experiments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Experiment Compliance</CardTitle>
+                <CardDescription>Did you follow your active experiments today?</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {experiments.map((experiment) => (
+                    <div key={experiment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{experiment.name}</h4>
+                        <p className="text-sm text-gray-600">{experiment.hypothesis}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={experimentCompliance[experiment.id] || false}
+                          onCheckedChange={(checked) => handleComplianceChange(experiment.id, checked)}
+                        />
+                        <Badge variant={experimentCompliance[experiment.id] ? "default" : "secondary"}>
+                          {experimentCompliance[experiment.id] ? "Followed" : "Skipped"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notes */}
           <Card>
             <CardHeader>
-              <CardTitle>Daily Notes</CardTitle>
-              <CardDescription>Any observations or thoughts</CardDescription>
+              <CardTitle>Notes</CardTitle>
+              <CardDescription>Any additional observations or thoughts?</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="How did you feel today? Any notable events or observations..."
-                value={logData.notes}
-                onChange={(e) => setLogData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={4}
               />
             </CardContent>
           </Card>
-        </div>
 
-        {/* Experiment Compliance */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Experiment Compliance</CardTitle>
-              <CardDescription>Did you follow your protocols today?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {activeExperiments.map((experiment, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <div className="font-medium">{experiment.name}</div>
-                    <div className="text-sm text-gray-600">Protocol followed?</div>
-                  </div>
-                  <Checkbox
-                    checked={experiment.compliance}
-                    onCheckedChange={() => handleProtocolToggle(experiment.name)}
-                  />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>This Week</CardTitle>
-              <CardDescription>Your progress summary</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Days logged</span>
-                <span className="font-medium">6/7</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Avg sleep</span>
-                <span className="font-medium">7.2h</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Avg mood</span>
-                <span className="font-medium">7.5/10</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Avg energy</span>
-                <span className="font-medium">7.8/10</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Protocol compliance</span>
-                <span className="font-medium">85%</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Save Button */}
-          <Button onClick={handleSave} className="w-full" size="lg">
-            <Save className="mr-2 h-4 w-4" />
-            Save Today's Log
+          {/* Submit */}
+          <Button type="submit" disabled={saving} className="w-full">
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? "Saving..." : "Save Daily Log"}
           </Button>
-        </div>
+        </form>
       </div>
     </div>
   )
