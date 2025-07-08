@@ -1,395 +1,276 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type React from "react"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Plus, X } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Navigation } from "@/components/navigation"
+import { getCurrentUser, saveExperiment, generateId, type User, type Experiment } from "@/lib/storage"
+import { ArrowLeft, Plus, X } from "lucide-react"
 
 export default function NewExperimentPage() {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [startDate, setStartDate] = useState<Date>()
-  const [endDate, setEndDate] = useState<Date>()
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
-  const [customMetric, setCustomMetric] = useState("")
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
-  const [formData, setFormData] = useState({
-    name: "",
-    hypothesis: "",
-    duration: "",
-    variables: [] as string[],
-    notes: "",
-  })
+  // Form state
+  const [name, setName] = useState("")
+  const [hypothesis, setHypothesis] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [variables, setVariables] = useState<string[]>([])
+  const [metrics, setMetrics] = useState<string[]>([])
+  const [notes, setNotes] = useState("")
+  const [newVariable, setNewVariable] = useState("")
+  const [newMetric, setNewMetric] = useState("")
 
-  const predefinedMetrics = [
-    "Sleep Quality",
-    "Sleep Duration",
-    "Energy Level",
-    "Mood",
-    "Stress Level",
-    "Focus",
-    "Weight",
-    "Heart Rate",
-    "HRV",
-    "Blood Pressure",
-    "Steps",
-    "Exercise Performance",
-    "Hunger Level",
-    "Cravings",
-    "Digestion",
-  ]
+  useEffect(() => {
+    const currentUser = getCurrentUser()
+    if (!currentUser) {
+      window.location.href = "/auth/signin"
+      return
+    }
 
-  const commonVariables = [
-    "Diet",
-    "Exercise",
-    "Sleep Schedule",
-    "Supplements",
-    "Temperature Exposure",
-    "Light Exposure",
-    "Meditation",
-    "Breathing Exercises",
-    "Hydration",
-    "Caffeine",
-  ]
+    setUser(currentUser)
+    setLoading(false)
 
-  const steps = [
-    { number: 1, title: "Basic Info", description: "Name and hypothesis" },
-    { number: 2, title: "Timeline", description: "Duration and dates" },
-    { number: 3, title: "Variables", description: "What you're testing" },
-    { number: 4, title: "Metrics", description: "What you'll track" },
-    { number: 5, title: "Review", description: "Confirm details" },
-  ]
+    // Set default dates
+    const today = new Date()
+    const nextMonth = new Date(today)
+    nextMonth.setMonth(today.getMonth() + 1)
 
-  const handleMetricToggle = (metric: string) => {
-    setSelectedMetrics((prev) => (prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]))
-  }
+    setStartDate(today.toISOString().split("T")[0])
+    setEndDate(nextMonth.toISOString().split("T")[0])
+  }, [])
 
-  const addCustomMetric = () => {
-    if (customMetric && !selectedMetrics.includes(customMetric)) {
-      setSelectedMetrics((prev) => [...prev, customMetric])
-      setCustomMetric("")
+  const addVariable = () => {
+    if (newVariable.trim() && !variables.includes(newVariable.trim())) {
+      setVariables([...variables, newVariable.trim()])
+      setNewVariable("")
     }
   }
 
-  const handleVariableToggle = (variable: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      variables: prev.variables.includes(variable)
-        ? prev.variables.filter((v) => v !== variable)
-        : [...prev.variables, variable],
-    }))
+  const removeVariable = (variable: string) => {
+    setVariables(variables.filter((v) => v !== variable))
+  }
+
+  const addMetric = () => {
+    if (newMetric.trim() && !metrics.includes(newMetric.trim())) {
+      setMetrics([...metrics, newMetric.trim()])
+      setNewMetric("")
+    }
+  }
+
+  const removeMetric = (metric: string) => {
+    setMetrics(metrics.filter((m) => m !== metric))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!user) return
+
+    setSaving(true)
+
+    const experiment: Experiment = {
+      id: generateId(),
+      user_id: user.id,
+      name,
+      hypothesis,
+      start_date: startDate,
+      end_date: endDate,
+      status: "active",
+      variables,
+      metrics,
+      notes: notes || undefined,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    saveExperiment(experiment)
+
+    setSaving(false)
+    router.push("/experiments")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Experiment</h1>
-        <p className="text-gray-600 mt-2">Design your personal health experiment</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
-          <div key={step.number} className="flex items-center">
-            <div
-              className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium",
-                currentStep >= step.number ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600",
-              )}
-            >
-              {step.number}
-            </div>
-            <div className="ml-3 hidden sm:block">
-              <div className="text-sm font-medium">{step.title}</div>
-              <div className="text-xs text-gray-500">{step.description}</div>
-            </div>
-            {index < steps.length - 1 && <div className="w-8 h-px bg-gray-300 mx-4 hidden sm:block" />}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Step {currentStep}: {steps[currentStep - 1].title}
-              </CardTitle>
-              <CardDescription>{steps[currentStep - 1].description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {currentStep === 1 && (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Experiment Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="e.g., Cold Shower Protocol"
-                      value={formData.name}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="hypothesis">Hypothesis</Label>
-                    <Textarea
-                      id="hypothesis"
-                      placeholder="What do you expect to happen? e.g., Cold showers will improve my energy and mood"
-                      value={formData.hypothesis}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, hypothesis: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Duration</Label>
-                    <Input
-                      placeholder="e.g., 30 days"
-                      value={formData.duration}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, duration: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Start Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !startDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {startDate ? format(startDate, "PPP") : "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div>
-                      <Label>End Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !endDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {endDate ? format(endDate, "PPP") : "Pick a date"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <Label>Variables Being Tested</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {commonVariables.map((variable) => (
-                      <div key={variable} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={variable}
-                          checked={formData.variables.includes(variable)}
-                          onCheckedChange={() => handleVariableToggle(variable)}
-                        />
-                        <Label htmlFor={variable} className="text-sm">
-                          {variable}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {formData.variables.map((variable) => (
-                      <Badge key={variable} variant="secondary">
-                        {variable}
-                        <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => handleVariableToggle(variable)} />
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 4 && (
-                <div className="space-y-4">
-                  <Label>Metrics to Track</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {predefinedMetrics.map((metric) => (
-                      <div key={metric} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={metric}
-                          checked={selectedMetrics.includes(metric)}
-                          onCheckedChange={() => handleMetricToggle(metric)}
-                        />
-                        <Label htmlFor={metric} className="text-sm">
-                          {metric}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Add custom metric"
-                      value={customMetric}
-                      onChange={(e) => setCustomMetric(e.target.value)}
-                    />
-                    <Button onClick={addCustomMetric} size="sm">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {selectedMetrics.map((metric) => (
-                      <Badge key={metric} variant="secondary">
-                        {metric}
-                        <X className="ml-1 h-3 w-3 cursor-pointer" onClick={() => handleMetricToggle(metric)} />
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 5 && (
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-base font-semibold">Experiment Summary</Label>
-                    <div className="mt-4 space-y-3">
-                      <div>
-                        <span className="font-medium">Name:</span> {formData.name}
-                      </div>
-                      <div>
-                        <span className="font-medium">Hypothesis:</span> {formData.hypothesis}
-                      </div>
-                      <div>
-                        <span className="font-medium">Duration:</span> {formData.duration}
-                      </div>
-                      <div>
-                        <span className="font-medium">Timeline:</span>{" "}
-                        {startDate ? format(startDate, "PPP") : "Not set"} -{" "}
-                        {endDate ? format(endDate, "PPP") : "Not set"}
-                      </div>
-                      <div>
-                        <span className="font-medium">Variables:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {formData.variables.map((variable) => (
-                            <Badge key={variable} variant="outline">
-                              {variable}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="font-medium">Metrics:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {selectedMetrics.map((metric) => (
-                            <Badge key={metric} variant="outline">
-                              {metric}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="notes">Additional Notes (Optional)</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Any additional details or reminders..."
-                      value={formData.notes}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between pt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-                  disabled={currentStep === 1}
-                >
-                  Previous
-                </Button>
-                {currentStep < 5 ? (
-                  <Button onClick={() => setCurrentStep((prev) => prev + 1)}>Next</Button>
-                ) : (
-                  <Button>Create Experiment</Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="mb-8">
+          <Link href="/experiments">
+            <Button variant="ghost" className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Experiments
+            </Button>
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900">Create New Experiment</h1>
+          <p className="text-gray-600 mt-2">Design your next biohacking experiment</p>
         </div>
 
-        {/* Preview Panel */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Live Preview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Name</Label>
-                <p className="text-sm text-gray-600">{formData.name || "Not set"}</p>
+        <Card>
+          <CardHeader>
+            <CardTitle>Experiment Details</CardTitle>
+            <CardDescription>Define your hypothesis and tracking parameters</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Experiment Name *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., Cold Shower Challenge"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="hypothesis">Hypothesis *</Label>
+                  <Textarea
+                    id="hypothesis"
+                    value={hypothesis}
+                    onChange={(e) => setHypothesis(e.target.value)}
+                    placeholder="e.g., Taking cold showers daily will improve my energy levels and mood"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="startDate">Start Date *</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="endDate">End Date *</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
               </div>
+
+              {/* Variables */}
               <div>
-                <Label className="text-sm font-medium">Duration</Label>
-                <p className="text-sm text-gray-600">{formData.duration || "Not set"}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Variables ({formData.variables.length})</Label>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {formData.variables.slice(0, 3).map((variable) => (
-                    <Badge key={variable} variant="outline" className="text-xs">
+                <Label>Variables to Track</Label>
+                <p className="text-sm text-gray-600 mb-3">What factors will you be changing or controlling?</p>
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    value={newVariable}
+                    onChange={(e) => setNewVariable(e.target.value)}
+                    placeholder="e.g., water temperature"
+                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addVariable())}
+                  />
+                  <Button type="button" onClick={addVariable} size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {variables.map((variable) => (
+                    <Badge key={variable} variant="outline" className="flex items-center gap-1">
                       {variable}
+                      <button type="button" onClick={() => removeVariable(variable)} className="ml-1">
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   ))}
-                  {formData.variables.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{formData.variables.length - 3}
-                    </Badge>
-                  )}
                 </div>
               </div>
+
+              {/* Metrics */}
               <div>
-                <Label className="text-sm font-medium">Metrics ({selectedMetrics.length})</Label>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {selectedMetrics.slice(0, 3).map((metric) => (
-                    <Badge key={metric} variant="outline" className="text-xs">
+                <Label>Metrics to Measure</Label>
+                <p className="text-sm text-gray-600 mb-3">What outcomes will you be tracking?</p>
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    value={newMetric}
+                    onChange={(e) => setNewMetric(e.target.value)}
+                    placeholder="e.g., energy level"
+                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addMetric())}
+                  />
+                  <Button type="button" onClick={addMetric} size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {metrics.map((metric) => (
+                    <Badge key={metric} variant="secondary" className="flex items-center gap-1">
                       {metric}
+                      <button type="button" onClick={() => removeMetric(metric)} className="ml-1">
+                        <X className="h-3 w-3" />
+                      </button>
                     </Badge>
                   ))}
-                  {selectedMetrics.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{selectedMetrics.length - 3}
-                    </Badge>
-                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="notes">Additional Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any additional details, protocols, or reminders..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-4 pt-4">
+                <Button type="submit" disabled={saving} className="flex-1">
+                  {saving ? "Creating..." : "Create Experiment"}
+                </Button>
+                <Link href="/experiments">
+                  <Button type="button" variant="outline" className="bg-transparent">
+                    Cancel
+                  </Button>
+                </Link>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
