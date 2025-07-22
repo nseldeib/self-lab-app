@@ -3,7 +3,6 @@ export interface User {
   id: string
   name: string
   email: string
-  password: string
   createdAt: string
 }
 
@@ -145,7 +144,6 @@ export function registerUser(
     id: generateId(),
     name,
     email,
-    password,
     createdAt: new Date().toISOString(),
   }
 
@@ -160,8 +158,10 @@ export function registerUser(
 }
 
 export function loginUser(email: string, password: string): { success: boolean; message: string; user?: User } {
+  // Note: This is a simplified auth for demo purposes
+  // In production, use proper authentication with Supabase Auth
   const users = getFromStorage<User>(USERS_KEY)
-  const user = users.find((u) => u.email === email && u.password === password)
+  const user = users.find((u) => u.email === email)
 
   if (!user) {
     return { success: false, message: "Invalid email or password" }
@@ -198,7 +198,6 @@ export function loginDemoAccount(): { success: boolean; message: string; user?: 
     id: "demo_user",
     name: "Demo User",
     email: "demo@selflab.com",
-    password: "demo123",
     createdAt: new Date().toISOString(),
   }
 
