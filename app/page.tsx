@@ -6,7 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Activity, Calendar, Clock, FlaskConical, LogOut, Plus, TrendingUp, BookOpen, BarChart3 } from "lucide-react"
+import {
+  Activity,
+  Calendar,
+  Clock,
+  FlaskConical,
+  LogOut,
+  Plus,
+  TrendingUp,
+  BookOpen,
+  BarChart3,
+  Settings,
+} from "lucide-react"
 import { getCurrentUser, signOut, getExperiments, getDailyLogs, getExperimentTemplates } from "@/lib/storage"
 
 export default function Dashboard() {
@@ -270,6 +281,19 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Subtle Controls Access */}
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/controls")}
+            className="text-gray-400 hover:text-gray-600 text-xs opacity-50 hover:opacity-100 transition-opacity"
+          >
+            <Settings className="h-3 w-3 mr-1" />
+            App Controls
+          </Button>
+        </div>
       </div>
     </div>
   )
