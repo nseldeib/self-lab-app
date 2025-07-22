@@ -44,25 +44,21 @@ export function Navigation() {
 
     // Listen for storage changes (for cross-tab sync)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "selflab_user") {
+      if (e.key === "selflab_current_user") {
         checkUser()
       }
     }
 
     window.addEventListener("storage", handleStorageChange)
 
-    // Also check periodically for user changes
-    const interval = setInterval(checkUser, 1000)
-
     return () => {
       window.removeEventListener("storage", handleStorageChange)
-      clearInterval(interval)
     }
   }, [])
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     try {
-      await signOut()
+      signOut()
       setUser(null)
       router.push("/auth/signin")
       router.refresh()
